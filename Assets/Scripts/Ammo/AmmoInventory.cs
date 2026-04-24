@@ -73,6 +73,8 @@ public class AmmoInventory : MonoBehaviour
 
     public void SetCurrentColor(AmmoColor color)
     {
+        if (currentAmmoColor == color) return;
+
         currentAmmoColor = color;
         OnCurrentColorChanged?.Invoke(currentAmmoColor);
     }
