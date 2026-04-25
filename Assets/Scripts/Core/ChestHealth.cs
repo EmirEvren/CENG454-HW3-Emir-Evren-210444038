@@ -13,9 +13,13 @@ public class ChestHealth : MonoBehaviour, IDamageable
 
     private bool isDestroyed;
 
-    private void Start()
+    private void Awake()
     {
         CurrentHealth = maxHealth;
+    }
+
+    private void Start()
+    {
         OnHealthChanged?.Invoke(CurrentHealth, maxHealth);
     }
 
@@ -25,6 +29,7 @@ public class ChestHealth : MonoBehaviour, IDamageable
         if (amount <= 0) return;
 
         CurrentHealth -= amount;
+
         if (CurrentHealth < 0)
             CurrentHealth = 0;
 
