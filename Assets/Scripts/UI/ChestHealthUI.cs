@@ -1,6 +1,6 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
 
 public class ChestHealthUI : MonoBehaviour
 {
@@ -11,17 +11,13 @@ public class ChestHealthUI : MonoBehaviour
     private void OnEnable()
     {
         if (chestHealth != null)
-        {
             chestHealth.OnHealthChanged += UpdateUI;
-        }
     }
 
     private void OnDisable()
     {
         if (chestHealth != null)
-        {
             chestHealth.OnHealthChanged -= UpdateUI;
-        }
     }
 
     private void Start()
@@ -36,13 +32,14 @@ public class ChestHealthUI : MonoBehaviour
     {
         if (healthSlider != null)
         {
+            healthSlider.minValue = 0;
             healthSlider.maxValue = maxHealth;
             healthSlider.value = currentHealth;
         }
 
         if (healthText != null)
         {
-            healthText.text = $"Chest HP: {currentHealth} / {maxHealth}";
+            healthText.text = $"Chest: {currentHealth}/{maxHealth}";
         }
     }
 }

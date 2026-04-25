@@ -5,6 +5,12 @@ public class AmmoPickup : MonoBehaviour
     [SerializeField] private AmmoColor ammoColor;
     [SerializeField] private int ammoAmount = 20;
 
+    public void Configure(AmmoColor color, int amount)
+    {
+        ammoColor = color;
+        ammoAmount = amount;
+    }
+
     private void OnTriggerEnter(Collider other)
     {
         AmmoInventory inventory = other.GetComponent<AmmoInventory>();
