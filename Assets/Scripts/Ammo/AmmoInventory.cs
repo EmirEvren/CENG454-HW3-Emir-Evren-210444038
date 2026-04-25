@@ -10,7 +10,7 @@ public class AmmoInventory : MonoBehaviour
     [SerializeField] private int yellowAmmo = 0;
 
     [Header("Current Selection")]
-    [SerializeField] private AmmoColor currentAmmoColor = AmmoColor.Red;
+    [SerializeField] private AmmoColor currentAmmoColor = AmmoColor.None;
 
     public AmmoColor CurrentAmmoColor => currentAmmoColor;
 
@@ -61,6 +61,7 @@ public class AmmoInventory : MonoBehaviour
     public bool TryConsumeCurrentAmmo(int amount)
     {
         if (amount <= 0) return false;
+        if (currentAmmoColor == AmmoColor.None) return false;
 
         int current = GetAmmo(currentAmmoColor);
         if (current < amount)
@@ -79,10 +80,15 @@ public class AmmoInventory : MonoBehaviour
         OnCurrentColorChanged?.Invoke(currentAmmoColor);
     }
 
+    public void ClearSelection()
+    {
+        SetCurrentColor(AmmoColor.None);
+    }
+
     public void SelectRed() => SetCurrentColor(AmmoColor.Red);
-    public void SelectBlue() => SetCurrentColor(AmmoColor.Blue);
-    public void SelectGreen() => SetCurrentColor(AmmoColor.Green);
     public void SelectYellow() => SetCurrentColor(AmmoColor.Yellow);
+    public void SelectGreen() => SetCurrentColor(AmmoColor.Green);
+    public void SelectBlue() => SetCurrentColor(AmmoColor.Blue);
 
     private void SetAmmo(AmmoColor color, int value)
     {

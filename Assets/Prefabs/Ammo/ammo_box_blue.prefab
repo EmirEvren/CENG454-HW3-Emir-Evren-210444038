@@ -308,7 +308,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 20657e10db0e28b45bfcc5a8ead11e90, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AmmoPickup
-  ammoColor: 1
+  ammoColor: 3
   ammoAmount: 20
 --- !u!1 &6142335728890083254
 GameObject:
