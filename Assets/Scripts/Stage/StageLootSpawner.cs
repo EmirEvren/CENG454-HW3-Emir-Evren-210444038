@@ -21,10 +21,10 @@ public class StageLootSpawner : MonoBehaviour
     {
         ClearLoot();
 
-        SpawnColorSet(redPickupPrefab, redSpawnPoints, pickupCountPerColor);
-        SpawnColorSet(yellowPickupPrefab, yellowSpawnPoints, pickupCountPerColor);
-        SpawnColorSet(greenPickupPrefab, greenSpawnPoints, pickupCountPerColor);
-        SpawnColorSet(bluePickupPrefab, blueSpawnPoints, pickupCountPerColor);
+        SpawnColorSet(redPickupPrefab, redSpawnPoints, pickupCountPerColor, "Red");
+        SpawnColorSet(yellowPickupPrefab, yellowSpawnPoints, pickupCountPerColor, "Yellow");
+        SpawnColorSet(greenPickupPrefab, greenSpawnPoints, pickupCountPerColor, "Green");
+        SpawnColorSet(bluePickupPrefab, blueSpawnPoints, pickupCountPerColor, "Blue");
     }
 
     public void ClearLoot()
@@ -32,21 +32,38 @@ public class StageLootSpawner : MonoBehaviour
         for (int i = 0; i < activeLoot.Count; i++)
         {
             if (activeLoot[i] != null)
+            {
                 Destroy(activeLoot[i]);
+            }
         }
 
         activeLoot.Clear();
     }
 
-    private void SpawnColorSet(GameObject pickupPrefab, Transform[] spawnPoints, int count)
+    private void SpawnColorSet(GameObject pickupPrefab, Transform[] spawnPoints, int count, string colorName)
     {
-        if (pickupPrefab == null || spawnPoints == null || spawnPoints.Length == 0)
+        if (pickupPrefab == null)
+        {
+            Debug.LogWarning($"{colorName} pickup prefab is not assigned.");
             return;
+        }
+
+        if (spawnPoints == null || spawnPoints.Length == 0)
+        {
+            Debug.LogWarning($"{colorName} spawn points are empty.");
+            return;
+        }
 
         int spawnCount = Mathf.Min(count, spawnPoints.Length);
 
         for (int i = 0; i < spawnCount; i++)
         {
+            if (spawnPoints[i] == null)
+            {
+                Debug.LogWarning($"{colorName} spawn point index {i} is null.");
+                continue;
+            }
+
             GameObject lootObj = Instantiate(
                 pickupPrefab,
                 spawnPoints[i].position,
@@ -55,5 +72,7 @@ public class StageLootSpawner : MonoBehaviour
 
             activeLoot.Add(lootObj);
         }
+
+        Debug.Log($"{colorName} loot spawned: {spawnCount}");
     }
 }
