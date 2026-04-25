@@ -12,6 +12,13 @@ public class Bullet : MonoBehaviour
     public AmmoColor AmmoColor => ammoColor;
     public int Damage => damage;
 
+    private Transform bulletRoot;
+
+    private void Awake()
+    {
+        bulletRoot = transform.parent != null ? transform.parent : transform;
+    }
+
     private void OnEnable()
     {
         timer = lifeTime;
@@ -24,8 +31,7 @@ public class Bullet : MonoBehaviour
         timer -= Time.deltaTime;
         if (timer <= 0f)
         {
-            Destroy(gameObject);
-            return;
+            Destroy(bulletRoot.gameObject);
         }
     }
 
@@ -38,9 +44,21 @@ public class Bullet : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
+        EnemyHealth enemy = other.GetComponentInParent<EnemyHealth>();
+        if (enemy != null)
+        {
+            if (enemy.EnemyColor == ammoColor)
+            {
+                enemy.TakeDamage(damage);
+            }
+
+            Destroy(bulletRoot.gameObject);
+            return;
+        }
+
         if (other.CompareTag("Wall"))
         {
-            Destroy(gameObject);
+            Destroy(bulletRoot.gameObject);
         }
     }
 }
