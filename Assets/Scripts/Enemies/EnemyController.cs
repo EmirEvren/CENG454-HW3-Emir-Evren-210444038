@@ -1,12 +1,16 @@
 using UnityEngine;
 
+[RequireComponent(typeof(Rigidbody))]
 public class EnemyController : MonoBehaviour
 {
-    private enum EnemyType
+    public enum EnemyType
     {
         Melee,
         Ranged
     }
+
+    [Header("Type")]
+    [SerializeField] private EnemyType enemyType = EnemyType.Melee;
 
     [Header("Targets")]
     [SerializeField] private Transform playerTarget;
@@ -15,7 +19,7 @@ public class EnemyController : MonoBehaviour
     [Header("Movement")]
     [SerializeField] private float moveSpeed = 3f;
     [SerializeField] private float playerDetectionRange = 6f;
-    [SerializeField] private float rotationSpeed = 10f;
+    [SerializeField] private float rotationSpeed = 180f;
 
     [Header("Attack")]
     [SerializeField] private int damage = 10;
@@ -25,24 +29,28 @@ public class EnemyController : MonoBehaviour
     [SerializeField] private float meleeAttackRange = 1.5f;
 
     [Header("Ranged Settings")]
-    [SerializeField] private float minRangedAttackRange = 7f;
-    [SerializeField] private float maxRangedAttackRange = 12f;
+    [SerializeField] private float fixedRangedAttackRange = 9f;
 
-    [Header("Spawn Chance")]
-    [SerializeField, Range(0f, 1f)] private float meleeChance = 0.6f;
+    [Header("Animation")]
+    [SerializeField] private Animator animator;
 
+    private Rigidbody rb;
     private Transform currentTarget;
     private bool lockedOnChest;
     private float attackRange;
     private float lastAttackTime;
-    private EnemyType enemyType;
 
     public bool IsRanged => enemyType == EnemyType.Ranged;
     public float AttackRange => attackRange;
 
     private void Awake()
     {
-        DecideEnemyType();
+        rb = GetComponent<Rigidbody>();
+
+        if (animator == null)
+            animator = GetComponentInChildren<Animator>();
+
+        SetupEnemyType();
     }
 
     private void Start()
@@ -56,6 +64,10 @@ public class EnemyController : MonoBehaviour
             return;
 
         SelectTarget();
+    }
+
+    private void FixedUpdate()
+    {
         MoveAndAttack();
     }
 
@@ -81,20 +93,12 @@ public class EnemyController : MonoBehaviour
         damage = newDamage;
     }
 
-    private void DecideEnemyType()
+    private void SetupEnemyType()
     {
-        float randomValue = Random.value;
-
-        if (randomValue <= meleeChance)
-        {
-            enemyType = EnemyType.Melee;
+        if (enemyType == EnemyType.Melee)
             attackRange = meleeAttackRange;
-        }
         else
-        {
-            enemyType = EnemyType.Ranged;
-            attackRange = Random.Range(minRangedAttackRange, maxRangedAttackRange);
-        }
+            attackRange = fixedRangedAttackRange;
     }
 
     private void SelectTarget()
@@ -124,31 +128,49 @@ public class EnemyController : MonoBehaviour
     private void MoveAndAttack()
     {
         if (currentTarget == null)
+        {
+            StopHorizontalMovement();
             return;
+        }
 
         Vector3 direction = currentTarget.position - transform.position;
         direction.y = 0f;
 
-        if (direction.sqrMagnitude > 0.01f)
+        if (direction.sqrMagnitude > 0.001f)
         {
             Quaternion targetRotation = Quaternion.LookRotation(direction.normalized);
-            transform.rotation = Quaternion.Slerp(
-                transform.rotation,
+            Quaternion newRotation = Quaternion.RotateTowards(
+                rb.rotation,
                 targetRotation,
-                rotationSpeed * Time.deltaTime
+                rotationSpeed * Time.fixedDeltaTime
             );
+
+            rb.MoveRotation(newRotation);
         }
 
         float distance = Vector3.Distance(transform.position, currentTarget.position);
 
         if (distance > attackRange)
         {
-            transform.position += transform.forward * moveSpeed * Time.deltaTime;
+            Vector3 moveDir = direction.normalized;
+            Vector3 velocity = rb.linearVelocity;
+            velocity.x = moveDir.x * moveSpeed;
+            velocity.z = moveDir.z * moveSpeed;
+            rb.linearVelocity = velocity;
         }
         else
         {
+            StopHorizontalMovement();
             TryAttack();
         }
+    }
+
+    private void StopHorizontalMovement()
+    {
+        Vector3 velocity = rb.linearVelocity;
+        velocity.x = 0f;
+        velocity.z = 0f;
+        rb.linearVelocity = velocity;
     }
 
     private void TryAttack()
@@ -166,6 +188,9 @@ public class EnemyController : MonoBehaviour
 
         if (damageable != null)
         {
+            if (animator != null)
+                animator.SetTrigger("Attack");
+
             damageable.TakeDamage(damage);
             lastAttackTime = Time.time;
         }

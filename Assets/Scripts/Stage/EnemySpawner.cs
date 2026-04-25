@@ -4,9 +4,16 @@ using UnityEngine;
 
 public class EnemySpawner : MonoBehaviour
 {
-    [SerializeField] private GameObject enemyPrefab;
+    [Header("Enemy Prefabs")]
+    [SerializeField] private GameObject fighterPrefab;
+    [SerializeField] private GameObject archerPrefab;
+
+    [Header("Spawn Settings")]
     [SerializeField] private Transform[] spawnPoints;
     [SerializeField] private float spawnInterval = 0.5f;
+
+    [Header("Spawn Chances")]
+    [SerializeField, Range(0f, 1f)] private float fighterChance = 0.6f;
 
     private int enemiesToSpawn;
     private int spawnedEnemies;
@@ -48,11 +55,15 @@ public class EnemySpawner : MonoBehaviour
 
     private void SpawnEnemy()
     {
-        if (enemyPrefab == null || spawnPoints == null || spawnPoints.Length == 0)
+        if (spawnPoints == null || spawnPoints.Length == 0)
+            return;
+
+        GameObject selectedPrefab = GetRandomEnemyPrefab();
+        if (selectedPrefab == null)
             return;
 
         Transform spawnPoint = spawnPoints[UnityEngine.Random.Range(0, spawnPoints.Length)];
-        GameObject enemyObj = Instantiate(enemyPrefab, spawnPoint.position, spawnPoint.rotation);
+        GameObject enemyObj = Instantiate(selectedPrefab, spawnPoint.position, spawnPoint.rotation);
 
         EnemyHealth enemyHealth = enemyObj.GetComponent<EnemyHealth>();
         if (enemyHealth != null)
@@ -71,6 +82,20 @@ public class EnemySpawner : MonoBehaviour
         {
             enemyController.ConfigureDamage(currentEnemyDamage);
             enemyController.InitializeTargets();
+        }
+    }
+
+    private GameObject GetRandomEnemyPrefab()
+    {
+        float randomValue = UnityEngine.Random.value;
+
+        if (randomValue <= fighterChance)
+        {
+            return fighterPrefab;
+        }
+        else
+        {
+            return archerPrefab;
         }
     }
 

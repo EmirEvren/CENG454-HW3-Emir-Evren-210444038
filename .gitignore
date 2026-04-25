@@ -20,4 +20,4 @@
 *.pdb
 *.mdb
 *.opendb
-*.VC.db
+*.VC.db*.unitypackage
