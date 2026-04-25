@@ -3,7 +3,7 @@ using UnityEngine;
 public class PlayerShooter : MonoBehaviour
 {
     [SerializeField] private AmmoInventory ammoInventory;
-    [SerializeField] private Transform firePoint;
+    [SerializeField] private Camera mainCamera;
 
     [Header("Bullet Prefabs")]
     [SerializeField] private GameObject redBulletPrefab;
@@ -12,10 +12,17 @@ public class PlayerShooter : MonoBehaviour
     [SerializeField] private GameObject blueBulletPrefab;
 
     [Header("Shooting Settings")]
-    [SerializeField] private float fireRate = 0.2f;
+    [SerializeField] private float fireRate = 0.15f;
     [SerializeField] private int bulletDamage = 1;
+    [SerializeField] private float bulletSpawnDistance = 0.5f;
 
     private float fireTimer;
+
+    private void Awake()
+    {
+        if (mainCamera == null)
+            mainCamera = Camera.main;
+    }
 
     private void Update()
     {
@@ -29,28 +36,28 @@ public class PlayerShooter : MonoBehaviour
     {
         if (ammoInventory == null) return;
 
-        // 1 = Red
         if (Input.GetKeyDown(KeyCode.Alpha1))
             ammoInventory.SetCurrentColor(AmmoColor.Red);
 
-        // 2 = Yellow
         if (Input.GetKeyDown(KeyCode.Alpha2))
             ammoInventory.SetCurrentColor(AmmoColor.Yellow);
 
-        // 3 = Green
         if (Input.GetKeyDown(KeyCode.Alpha3))
             ammoInventory.SetCurrentColor(AmmoColor.Green);
 
-        // 4 = Blue
         if (Input.GetKeyDown(KeyCode.Alpha4))
             ammoInventory.SetCurrentColor(AmmoColor.Blue);
+
+        if (Input.GetKeyDown(KeyCode.Q))
+            ammoInventory.ClearSelection();
     }
 
     private void HandleShooting()
     {
         if (!Input.GetMouseButton(0)) return;
         if (fireTimer > 0f) return;
-        if (ammoInventory == null || firePoint == null) return;
+        if (ammoInventory == null || mainCamera == null) return;
+        if (ammoInventory.CurrentAmmoColor == AmmoColor.None) return;
 
         bool consumed = ammoInventory.TryConsumeCurrentAmmo(1);
         if (!consumed) return;
@@ -60,8 +67,14 @@ public class PlayerShooter : MonoBehaviour
 
         fireTimer = fireRate;
 
-        GameObject bulletObj = Instantiate(selectedBulletPrefab, firePoint.position, firePoint.rotation);
+        Vector3 spawnPosition = mainCamera.transform.position + mainCamera.transform.forward * bulletSpawnDistance;
+        Quaternion spawnRotation = Quaternion.LookRotation(mainCamera.transform.forward);
+
+        GameObject bulletObj = Instantiate(selectedBulletPrefab, spawnPosition, spawnRotation);
+
         Bullet bullet = bulletObj.GetComponent<Bullet>();
+        if (bullet == null)
+            bullet = bulletObj.GetComponentInChildren<Bullet>();
 
         if (bullet != null)
         {
@@ -75,16 +88,12 @@ public class PlayerShooter : MonoBehaviour
         {
             case AmmoColor.Red:
                 return redBulletPrefab;
-
             case AmmoColor.Yellow:
                 return yellowBulletPrefab;
-
             case AmmoColor.Green:
                 return greenBulletPrefab;
-
             case AmmoColor.Blue:
                 return blueBulletPrefab;
-
             default:
                 return null;
         }

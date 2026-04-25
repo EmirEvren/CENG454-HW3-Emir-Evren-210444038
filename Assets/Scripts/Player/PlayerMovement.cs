@@ -4,30 +4,41 @@ using UnityEngine;
 [RequireComponent(typeof(CapsuleCollider))]
 public class PlayerMovement : MonoBehaviour
 {
+    [Header("References")]
+    [SerializeField] private Transform cameraPivot;
+
     [Header("Movement")]
-    [SerializeField] private float moveSpeed = 6f;
+    [SerializeField] private float moveSpeed = 7f;
+    [SerializeField] private float crouchMoveSpeed = 4f;
 
     [Header("Mouse Look")]
-    [SerializeField] private float mouseSensitivity = 3f;
-    [SerializeField] private Transform cameraTransform;
-    [SerializeField] private float minPitch = -70f;
-    [SerializeField] private float maxPitch = 70f;
+    [SerializeField] private float mouseSensitivityX = 3f;
+    [SerializeField] private float mouseSensitivityY = 2f;
+    [SerializeField] private float minPitch = -20f;
+    [SerializeField] private float maxPitch = 25f;
+    [SerializeField] private float startPitch = 0f;
 
     [Header("Jump")]
-    [SerializeField] private float jumpForce = 7f;
+    [SerializeField] private float jumpForce = 6.5f;
     [SerializeField] private float groundCheckDistance = 0.2f;
 
     [Header("Crouch")]
-    [SerializeField] private float crouchHeight = 1f;
+    [SerializeField] private float standingHeight = 2f;
+    [SerializeField] private float crouchHeight = 1.2f;
+    [SerializeField] private float standingCameraY = 1.6f;
+    [SerializeField] private float crouchCameraY = 1.1f;
 
     private Rigidbody rb;
     private CapsuleCollider capsuleCollider;
-    private Vector3 moveInput;
 
     private float yaw;
     private float pitch;
 
-    private float standingHeight;
+    private float inputX;
+    private float inputZ;
+    private bool jumpQueued;
+    private bool isCrouching;
+
     private Vector3 standingCenter;
     private Vector3 crouchCenter;
 
@@ -37,84 +48,122 @@ public class PlayerMovement : MonoBehaviour
         capsuleCollider = GetComponent<CapsuleCollider>();
 
         yaw = transform.eulerAngles.y;
+        pitch = startPitch;
 
-        if (cameraTransform != null)
-        {
-            pitch = cameraTransform.localEulerAngles.x;
-            if (pitch > 180f) pitch -= 360f;
-        }
-
-        standingHeight = capsuleCollider.height;
+        capsuleCollider.height = standingHeight;
         standingCenter = capsuleCollider.center;
 
         crouchCenter = standingCenter;
         crouchCenter.y -= (standingHeight - crouchHeight) * 0.5f;
     }
 
+    private void Start()
+    {
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+
+        if (cameraPivot != null)
+        {
+            Vector3 camPos = cameraPivot.localPosition;
+            camPos.y = standingCameraY;
+            cameraPivot.localPosition = camPos;
+            cameraPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
+        }
+    }
+
     private void Update()
     {
         HandleMouseLook();
-        HandleMovementInput();
-        HandleJump();
+        HandleInput();
         HandleCrouch();
     }
 
     private void FixedUpdate()
     {
         HandleMovement();
+        HandleJump();
     }
 
     private void HandleMouseLook()
     {
-        float mouseX = Input.GetAxis("Mouse X");
-        float mouseY = Input.GetAxis("Mouse Y");
+        float mouseX = Input.GetAxisRaw("Mouse X");
+        float mouseY = Input.GetAxisRaw("Mouse Y");
 
-        yaw += mouseX * mouseSensitivity;
-        pitch -= mouseY * mouseSensitivity;
+        yaw += mouseX * mouseSensitivityX;
+        pitch -= mouseY * mouseSensitivityY;
         pitch = Mathf.Clamp(pitch, minPitch, maxPitch);
 
-        Quaternion targetRotation = Quaternion.Euler(0f, yaw, 0f);
-        rb.MoveRotation(targetRotation);
+        transform.rotation = Quaternion.Euler(0f, yaw, 0f);
 
-        if (cameraTransform != null)
+        if (cameraPivot != null)
         {
-            cameraTransform.localRotation = Quaternion.Euler(pitch, 0f, 0f);
+            cameraPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
         }
     }
 
-    private void HandleMovementInput()
+    private void HandleInput()
     {
-        float h = Input.GetAxisRaw("Horizontal");
-        float v = Input.GetAxisRaw("Vertical");
+        inputX = Input.GetAxisRaw("Horizontal");
+        inputZ = Input.GetAxisRaw("Vertical");
 
-        moveInput = (transform.forward * v + transform.right * h).normalized;
+        if (Input.GetKeyDown(KeyCode.Space))
+            jumpQueued = true;
+
+        isCrouching = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
     }
 
     private void HandleMovement()
     {
-        Vector3 targetPosition = rb.position + moveInput * moveSpeed * Time.fixedDeltaTime;
-        rb.MovePosition(targetPosition);
+        float speed = isCrouching ? crouchMoveSpeed : moveSpeed;
+
+        Vector3 moveDir = (transform.right * inputX + transform.forward * inputZ).normalized;
+        Vector3 velocity = rb.linearVelocity;
+
+        velocity.x = moveDir.x * speed;
+        velocity.z = moveDir.z * speed;
+
+        rb.linearVelocity = velocity;
     }
 
     private void HandleJump()
     {
-        if (Input.GetKeyDown(KeyCode.Space) && IsGrounded())
-        {
-            rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
-        }
+        if (!jumpQueued) return;
+        jumpQueued = false;
+
+        if (!IsGrounded()) return;
+
+        Vector3 velocity = rb.linearVelocity;
+        velocity.y = 0f;
+        rb.linearVelocity = velocity;
+
+        rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
     }
 
     private void HandleCrouch()
     {
-        if (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl))
+        if (isCrouching)
         {
             capsuleCollider.height = crouchHeight;
             capsuleCollider.center = crouchCenter;
+
+            if (cameraPivot != null)
+            {
+                Vector3 camPos = cameraPivot.localPosition;
+                camPos.y = crouchCameraY;
+                cameraPivot.localPosition = camPos;
+            }
         }
         else
         {
             capsuleCollider.height = standingHeight;
             capsuleCollider.center = standingCenter;
+
+            if (cameraPivot != null)
+            {
+                Vector3 camPos = cameraPivot.localPosition;
+                camPos.y = standingCameraY;
+                cameraPivot.localPosition = camPos;
+            }
         }
     }
 

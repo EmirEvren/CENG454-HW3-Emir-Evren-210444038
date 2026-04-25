@@ -3,7 +3,7 @@ using UnityEngine;
 
 public class EnemyHealth : MonoBehaviour, IDamageable
 {
-    private AmmoColor enemyColor;
+    private AmmoColor enemyColor = AmmoColor.Red;
 
     [SerializeField] private int maxHealth = 1;
 
@@ -23,6 +23,9 @@ public class EnemyHealth : MonoBehaviour, IDamageable
     private void Awake()
     {
         currentHealth = maxHealth;
+
+        if (meshRenderer == null)
+            meshRenderer = GetComponentInChildren<MeshRenderer>();
     }
 
     public void ConfigureHealth(int newHealth)
@@ -57,16 +60,19 @@ public class EnemyHealth : MonoBehaviour, IDamageable
         switch (enemyColor)
         {
             case AmmoColor.Red:
-                meshRenderer.material = redMaterial;
+                if (redMaterial != null) meshRenderer.material = redMaterial;
                 break;
+
             case AmmoColor.Yellow:
-                meshRenderer.material = yellowMaterial;
+                if (yellowMaterial != null) meshRenderer.material = yellowMaterial;
                 break;
+
             case AmmoColor.Green:
-                meshRenderer.material = greenMaterial;
+                if (greenMaterial != null) meshRenderer.material = greenMaterial;
                 break;
+
             case AmmoColor.Blue:
-                meshRenderer.material = blueMaterial;
+                if (blueMaterial != null) meshRenderer.material = blueMaterial;
                 break;
         }
     }
