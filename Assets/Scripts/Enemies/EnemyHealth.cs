@@ -19,6 +19,9 @@ public class EnemyHealth : MonoBehaviour, IDamageable
     public AmmoColor EnemyColor => enemyColor;
 
     public event Action<EnemyHealth> OnEnemyDied;
+    
+    // UI'a haber vermek için yeni eventimiz (Güncel Can, Maksimum Can)
+    public event Action<int, int> OnHealthChanged; 
 
     private void Awake()
     {
@@ -32,6 +35,9 @@ public class EnemyHealth : MonoBehaviour, IDamageable
     {
         maxHealth = newHealth;
         currentHealth = maxHealth;
+        
+        // Başlangıçta can ayarlandığında UI'ı güncelle
+        OnHealthChanged?.Invoke(currentHealth, maxHealth); 
     }
 
     public void ConfigureColor(AmmoColor newColor)
@@ -45,6 +51,9 @@ public class EnemyHealth : MonoBehaviour, IDamageable
         if (amount <= 0) return;
 
         currentHealth -= amount;
+        
+        // Hasar yediğinde UI'ı güncelle
+        OnHealthChanged?.Invoke(currentHealth, maxHealth); 
 
         if (currentHealth <= 0)
         {
@@ -62,15 +71,12 @@ public class EnemyHealth : MonoBehaviour, IDamageable
             case AmmoColor.Red:
                 if (redMaterial != null) meshRenderer.material = redMaterial;
                 break;
-
             case AmmoColor.Yellow:
                 if (yellowMaterial != null) meshRenderer.material = yellowMaterial;
                 break;
-
             case AmmoColor.Green:
                 if (greenMaterial != null) meshRenderer.material = greenMaterial;
                 break;
-
             case AmmoColor.Blue:
                 if (blueMaterial != null) meshRenderer.material = blueMaterial;
                 break;
