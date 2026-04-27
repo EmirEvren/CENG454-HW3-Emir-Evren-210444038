@@ -6,10 +6,12 @@ public class PlayerMovement : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] private Transform cameraPivot;
+    [SerializeField] private Animator animator;
 
     [Header("Movement")]
-    [SerializeField] private float moveSpeed = 7f;
-    [SerializeField] private float crouchMoveSpeed = 4f;
+    [SerializeField] private float walkSpeed = 4f;
+    [SerializeField] private float runSpeed = 7f;
+    [SerializeField] private float crouchMoveSpeed = 2.5f;
 
     [Header("Mouse Look")]
     [SerializeField] private float mouseSensitivityX = 3f;
@@ -20,7 +22,9 @@ public class PlayerMovement : MonoBehaviour
 
     [Header("Jump")]
     [SerializeField] private float jumpForce = 6.5f;
-    [SerializeField] private float groundCheckDistance = 0.2f;
+    [SerializeField] private LayerMask groundMask = ~0;
+    [SerializeField] private float groundCheckRadiusMultiplier = 0.9f;
+    [SerializeField] private float groundCheckOffset = 0.05f;
 
     [Header("Crouch")]
     [SerializeField] private float standingHeight = 2f;
@@ -36,8 +40,13 @@ public class PlayerMovement : MonoBehaviour
 
     private float inputX;
     private float inputZ;
+
     private bool jumpQueued;
+    private bool wantsToCrouch;
     private bool isCrouching;
+    private bool isRunning;
+    private bool isAiming;
+    private bool isGrounded;
 
     private Vector3 standingCenter;
     private Vector3 crouchCenter;
@@ -46,6 +55,9 @@ public class PlayerMovement : MonoBehaviour
     {
         rb = GetComponent<Rigidbody>();
         capsuleCollider = GetComponent<CapsuleCollider>();
+
+        if (animator == null)
+            animator = GetComponentInChildren<Animator>();
 
         yaw = transform.eulerAngles.y;
         pitch = startPitch;
@@ -75,11 +87,14 @@ public class PlayerMovement : MonoBehaviour
     {
         HandleMouseLook();
         HandleInput();
-        HandleCrouch();
+        UpdateAnimator();
     }
 
     private void FixedUpdate()
     {
+        isGrounded = CheckGrounded();
+
+        HandleCrouchPhysics();
         HandleMovement();
         HandleJump();
     }
@@ -96,9 +111,7 @@ public class PlayerMovement : MonoBehaviour
         transform.rotation = Quaternion.Euler(0f, yaw, 0f);
 
         if (cameraPivot != null)
-        {
             cameraPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
-        }
     }
 
     private void HandleInput()
@@ -109,12 +122,19 @@ public class PlayerMovement : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Space))
             jumpQueued = true;
 
-        isCrouching = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+        wantsToCrouch = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+        isAiming = Input.GetMouseButton(1);
+        isRunning = Input.GetKey(KeyCode.LeftShift) && inputZ > 0.1f && !isCrouching && !wantsToCrouch;
     }
 
     private void HandleMovement()
     {
-        float speed = isCrouching ? crouchMoveSpeed : moveSpeed;
+        float speed = walkSpeed;
+
+        if (isCrouching)
+            speed = crouchMoveSpeed;
+        else if (isRunning)
+            speed = runSpeed;
 
         Vector3 moveDir = (transform.right * inputX + transform.forward * inputZ).normalized;
         Vector3 velocity = rb.linearVelocity;
@@ -127,20 +147,53 @@ public class PlayerMovement : MonoBehaviour
 
     private void HandleJump()
     {
-        if (!jumpQueued) return;
+        if (!jumpQueued)
+            return;
+
         jumpQueued = false;
 
-        if (!IsGrounded()) return;
+        if (!isGrounded)
+            return;
+
+        if (isCrouching)
+        {
+            if (!CanStandUp())
+                return;
+
+            SetCrouch(false);
+        }
 
         Vector3 velocity = rb.linearVelocity;
         velocity.y = 0f;
         rb.linearVelocity = velocity;
 
         rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
+
+        if (animator != null)
+            animator.SetTrigger("Jump");
     }
 
-    private void HandleCrouch()
+    private void HandleCrouchPhysics()
     {
+        if (wantsToCrouch)
+        {
+            if (isGrounded)
+                SetCrouch(true);
+        }
+        else
+        {
+            if (CanStandUp())
+                SetCrouch(false);
+        }
+    }
+
+    private void SetCrouch(bool value)
+    {
+        if (isCrouching == value)
+            return;
+
+        isCrouching = value;
+
         if (isCrouching)
         {
             capsuleCollider.height = crouchHeight;
@@ -167,9 +220,60 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
-    private bool IsGrounded()
+    private void UpdateAnimator()
     {
-        float rayLength = (capsuleCollider.height * 0.5f) + groundCheckDistance;
-        return Physics.Raycast(transform.position, Vector3.down, rayLength);
+        if (animator == null)
+            return;
+
+        Vector3 horizontalVelocity = rb.linearVelocity;
+        horizontalVelocity.y = 0f;
+
+        float moveAmount = horizontalVelocity.magnitude;
+
+        animator.SetFloat("MoveAmount", moveAmount);
+        animator.SetBool("IsRunning", isRunning);
+        animator.SetBool("IsGrounded", isGrounded);
+        animator.SetBool("IsCrouching", isCrouching);
+        animator.SetBool("IsAiming", isAiming);
+    }
+
+    private bool CheckGrounded()
+    {
+        Bounds bounds = capsuleCollider.bounds;
+        float radius = Mathf.Max(0.05f, capsuleCollider.radius * groundCheckRadiusMultiplier);
+
+        Vector3 checkPos = new Vector3(
+            bounds.center.x,
+            bounds.min.y + groundCheckOffset,
+            bounds.center.z
+        );
+
+        return Physics.CheckSphere(checkPos, radius, groundMask, QueryTriggerInteraction.Ignore);
+    }
+
+    private bool CanStandUp()
+    {
+        if (isCrouching == false)
+            return true;
+
+        Bounds bounds = capsuleCollider.bounds;
+        float radius = Mathf.Max(0.05f, capsuleCollider.radius * 0.9f);
+        float extraHeightNeeded = standingHeight - crouchHeight;
+
+        Vector3 origin = new Vector3(
+            bounds.center.x,
+            bounds.max.y - radius,
+            bounds.center.z
+        );
+
+        return !Physics.SphereCast(
+            origin,
+            radius,
+            Vector3.up,
+            out _,
+            extraHeightNeeded + 0.05f,
+            groundMask,
+            QueryTriggerInteraction.Ignore
+        );
     }
 }

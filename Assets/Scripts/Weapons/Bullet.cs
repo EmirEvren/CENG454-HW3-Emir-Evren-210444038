@@ -8,6 +8,7 @@ public class Bullet : MonoBehaviour
     private int damage;
     private AmmoColor ammoColor;
     private float timer;
+    private Vector3 moveDirection;
 
     public AmmoColor AmmoColor => ammoColor;
     public int Damage => damage;
@@ -26,7 +27,7 @@ public class Bullet : MonoBehaviour
 
     private void Update()
     {
-        transform.position += transform.forward * speed * Time.deltaTime;
+        bulletRoot.position += moveDirection * speed * Time.deltaTime;
 
         timer -= Time.deltaTime;
         if (timer <= 0f)
@@ -35,11 +36,14 @@ public class Bullet : MonoBehaviour
         }
     }
 
-    public void Initialize(int bulletDamage, AmmoColor color)
+    public void Initialize(int bulletDamage, AmmoColor color, Vector3 direction)
     {
         damage = bulletDamage;
         ammoColor = color;
+        moveDirection = direction.normalized;
         timer = lifeTime;
+
+        bulletRoot.rotation = Quaternion.LookRotation(moveDirection);
     }
 
     private void OnTriggerEnter(Collider other)
