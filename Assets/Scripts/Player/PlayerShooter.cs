@@ -47,7 +47,8 @@ public class PlayerShooter : MonoBehaviour
 
     private void HandleColorSelection()
     {
-        if (ammoInventory == null) return;
+        if (ammoInventory == null)
+            return;
 
         if (Input.GetKeyDown(KeyCode.Alpha1))
             ammoInventory.SetCurrentColor(AmmoColor.Red);
@@ -67,21 +68,33 @@ public class PlayerShooter : MonoBehaviour
 
     private void HandleShooting()
     {
-        if (!Input.GetMouseButton(0)) return;
-        if (fireTimer > 0f) return;
-        if (ammoInventory == null || mainCamera == null || firePoint == null) return;
-        if (ammoInventory.CurrentAmmoColor == AmmoColor.None) return;
+        if (!Input.GetMouseButton(0))
+            return;
+
+        if (fireTimer > 0f)
+            return;
+
+        if (ammoInventory == null || mainCamera == null || firePoint == null)
+            return;
+
+        if (ammoInventory.CurrentAmmoColor == AmmoColor.None)
+            return;
 
         bool consumed = ammoInventory.TryConsumeCurrentAmmo(1);
-        if (!consumed) return;
+        if (!consumed)
+            return;
 
         GameObject selectedBulletPrefab = GetBulletPrefab(ammoInventory.CurrentAmmoColor);
-        if (selectedBulletPrefab == null) return;
+        if (selectedBulletPrefab == null)
+            return;
 
         fireTimer = fireRate;
 
         if (animator != null)
+        {
+            animator.ResetTrigger("Shoot");
             animator.SetTrigger("Shoot");
+        }
 
         Vector3 aimPoint = GetAimPoint();
         Vector3 shootDirection = (aimPoint - firePoint.position).normalized;
@@ -98,7 +111,11 @@ public class PlayerShooter : MonoBehaviour
 
         if (bullet != null)
         {
-            bullet.Initialize(bulletDamage, ammoInventory.CurrentAmmoColor, shootDirection);
+            bullet.Initialize(
+                bulletDamage,
+                ammoInventory.CurrentAmmoColor,
+                shootDirection
+            );
         }
     }
 
