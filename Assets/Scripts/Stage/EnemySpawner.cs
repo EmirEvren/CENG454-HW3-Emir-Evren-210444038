@@ -15,6 +15,9 @@ public class EnemySpawner : MonoBehaviour
     [Header("Spawn Chances")]
     [SerializeField, Range(0f, 1f)] private float fighterChance = 0.6f;
 
+    [Header("Outline Settings")]
+    [SerializeField] private float enemyOutlineWidth = 10f;
+
     private int enemiesToSpawn;
     private int spawnedEnemies;
     private int aliveEnemies;
@@ -44,6 +47,7 @@ public class EnemySpawner : MonoBehaviour
         {
             SpawnEnemy();
             spawnedEnemies++;
+
             yield return new WaitForSeconds(spawnInterval);
         }
 
@@ -59,29 +63,71 @@ public class EnemySpawner : MonoBehaviour
             return;
 
         GameObject selectedPrefab = GetRandomEnemyPrefab();
+
         if (selectedPrefab == null)
             return;
 
         Transform spawnPoint = spawnPoints[UnityEngine.Random.Range(0, spawnPoints.Length)];
         GameObject enemyObj = Instantiate(selectedPrefab, spawnPoint.position, spawnPoint.rotation);
 
+        AmmoColor randomColor = (AmmoColor)UnityEngine.Random.Range(0, 4);
+
         EnemyHealth enemyHealth = enemyObj.GetComponent<EnemyHealth>();
+
         if (enemyHealth != null)
         {
             enemyHealth.ConfigureHealth(currentEnemyHealth);
-
-            AmmoColor randomColor = (AmmoColor)UnityEngine.Random.Range(0, 4);
             enemyHealth.ConfigureColor(randomColor);
 
             enemyHealth.OnEnemyDied += HandleEnemyDied;
             aliveEnemies++;
         }
 
+        ApplyOutline(enemyObj, randomColor);
+
         EnemyController enemyController = enemyObj.GetComponent<EnemyController>();
+
         if (enemyController != null)
         {
             enemyController.ConfigureDamage(currentEnemyDamage);
             enemyController.InitializeTargets();
+        }
+    }
+
+    private void ApplyOutline(GameObject enemyObj, AmmoColor ammoColor)
+    {
+        if (enemyObj == null)
+            return;
+
+        Outline outline = enemyObj.GetComponent<Outline>();
+
+        if (outline == null)
+            outline = enemyObj.AddComponent<Outline>();
+
+        outline.OutlineMode = Outline.Mode.OutlineAll;
+        outline.OutlineWidth = enemyOutlineWidth;
+        outline.OutlineColor = GetOutlineColor(ammoColor);
+    }
+
+    private Color GetOutlineColor(AmmoColor ammoColor)
+    {
+        switch (ammoColor)
+        {
+            case AmmoColor.Red:
+                return Color.red;
+
+            case AmmoColor.Yellow:
+                return Color.yellow;
+
+            case AmmoColor.Green:
+                return Color.green;
+
+            case AmmoColor.Blue:
+                return Color.blue;
+
+            case AmmoColor.None:
+            default:
+                return Color.white;
         }
     }
 

@@ -27,9 +27,22 @@ public class StageManager : MonoBehaviour
     [SerializeField] private int[] enemyDamagePerStage = { 10, 15, 15 };
     [SerializeField] private int[] enemyHealthPerStage = { 1, 1, 3 };
 
-    private int currentStageIndex;
+    private int currentStageIndex = 0;
     private float phaseTimer;
     private StagePhase currentPhase;
+
+    private int StageCount
+    {
+        get
+        {
+            return Mathf.Min(
+                enemiesPerStage.Length,
+                lootPickupCountPerColor.Length,
+                enemyDamagePerStage.Length,
+                enemyHealthPerStage.Length
+            );
+        }
+    }
 
     private void OnEnable()
     {
@@ -56,6 +69,9 @@ public class StageManager : MonoBehaviour
 
         phaseTimer -= Time.deltaTime;
 
+        if (phaseTimer < 0f)
+            phaseTimer = 0f;
+
         if (timerText != null)
             timerText.text = $"Time: {Mathf.CeilToInt(phaseTimer)}";
 
@@ -67,6 +83,12 @@ public class StageManager : MonoBehaviour
 
     private void BeginLootPhase()
     {
+        if (currentStageIndex >= StageCount)
+        {
+            CompleteAllStages();
+            return;
+        }
+
         currentPhase = StagePhase.Loot;
         phaseTimer = lootDuration;
 
@@ -76,16 +98,32 @@ public class StageManager : MonoBehaviour
         if (phaseText != null)
             phaseText.text = "Loot Phase";
 
+        if (timerText != null)
+            timerText.text = $"Time: {Mathf.CeilToInt(phaseTimer)}";
+
         if (lootSpawner != null)
         {
+            lootSpawner.ClearLoot();
+
             int pickupCount = lootPickupCountPerColor[currentStageIndex];
             lootSpawner.SpawnLootForStage(pickupCount);
         }
+
+        Debug.Log($"Stage {currentStageIndex + 1} Loot Phase started.");
     }
 
     private void BeginCombatPhase()
     {
+        if (currentStageIndex >= StageCount)
+        {
+            CompleteAllStages();
+            return;
+        }
+
         currentPhase = StagePhase.Combat;
+
+        if (stageText != null)
+            stageText.text = $"Stage {currentStageIndex + 1}";
 
         if (phaseText != null)
             phaseText.text = "Combat Phase";
@@ -104,28 +142,44 @@ public class StageManager : MonoBehaviour
 
             enemySpawner.StartWave(enemyCount, enemyDamage, enemyHealth);
         }
+
+        Debug.Log($"Stage {currentStageIndex + 1} Combat Phase started.");
     }
 
     private void HandleWaveCompleted()
     {
+        if (currentPhase != StagePhase.Combat)
+            return;
+
+        Debug.Log($"Stage {currentStageIndex + 1} Combat Phase completed.");
+
         currentStageIndex++;
 
-        if (currentStageIndex >= enemiesPerStage.Length)
+        if (currentStageIndex >= StageCount)
         {
-            currentPhase = StagePhase.Completed;
-
-            if (stageText != null)
-                stageText.text = "All Stages Clear";
-
-            if (phaseText != null)
-                phaseText.text = "You Win";
-
-            if (timerText != null)
-                timerText.text = "";
-
+            CompleteAllStages();
             return;
         }
 
         BeginLootPhase();
+    }
+
+    private void CompleteAllStages()
+    {
+        currentPhase = StagePhase.Completed;
+
+        if (lootSpawner != null)
+            lootSpawner.ClearLoot();
+
+        if (stageText != null)
+            stageText.text = "All Stages Clear";
+
+        if (phaseText != null)
+            phaseText.text = "You Win";
+
+        if (timerText != null)
+            timerText.text = "";
+
+        Debug.Log("All stages completed. You Win.");
     }
 }
