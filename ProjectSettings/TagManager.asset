@@ -7,6 +7,7 @@ TagManager:
   - Ground
   - firePoint
   - LobbyCamera
+  - Wall
   layers:
   - Default
   - TransparentFX
