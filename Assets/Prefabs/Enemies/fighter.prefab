@@ -164,10 +164,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 3169460800368602390}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 2.8, y: 21}
-  m_SizeDelta: {x: 98, y: 99.5}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0.53, y: 21}
+  m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &3804178086958065683
 MonoBehaviour:
@@ -186,10 +186,10 @@ MonoBehaviour:
     m_Right: 0
     m_Top: 0
     m_Bottom: 0
-  m_ChildAlignment: 0
+  m_ChildAlignment: 4
   m_Spacing: 0.1
-  m_ChildForceExpandWidth: 1
-  m_ChildForceExpandHeight: 1
+  m_ChildForceExpandWidth: 0
+  m_ChildForceExpandHeight: 0
   m_ChildControlWidth: 0
   m_ChildControlHeight: 0
   m_ChildScaleWidth: 0
@@ -663,10 +663,10 @@ CapsuleCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Radius: 0.5
+  m_Radius: 0.25462776
   m_Height: 2.2894764
   m_Direction: 1
-  m_Center: {x: 0, y: 0.6447382, z: 0}
+  m_Center: {x: 0.12260139, y: 0.6447382, z: -0.122770846}
 --- !u!114 &2370388739933788940
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -700,12 +700,12 @@ MonoBehaviour:
   enemyType: 0
   playerTarget: {fileID: 0}
   chestTarget: {fileID: 0}
-  moveSpeed: 3
+  moveSpeed: 4.2
   playerDetectionRange: 6
   rotationSpeed: 10
   damage: 10
   attackCooldown: 1
-  meleeAttackRange: 1.5
+  meleeAttackRange: 2
   fixedRangedAttackRange: 9
   animator: {fileID: 5038560258789443140}
 --- !u!54 &-3738724334801981301

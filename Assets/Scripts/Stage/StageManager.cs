@@ -1,7 +1,8 @@
+using System;
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using System.Collections;
 
 public class StageManager : MonoBehaviour
 {
@@ -9,6 +10,7 @@ public class StageManager : MonoBehaviour
     {
         Loot,
         Combat,
+        Transition,
         Completed
     }
 
@@ -27,17 +29,24 @@ public class StageManager : MonoBehaviour
 
     [Header("Stage Settings")]
     [SerializeField] private float lootDuration = 20f;
+    [SerializeField] private float stageClearDelay = 2f;
 
     [SerializeField] private int[] enemiesPerStage = { 20, 30, 40 };
     [SerializeField] private int[] lootPickupCountPerColor = { 1, 1, 2 };
     [SerializeField] private int[] enemyDamagePerStage = { 10, 15, 15 };
     [SerializeField] private int[] enemyHealthPerStage = { 1, 1, 3 };
 
+    public event Action<int> OnLootPhaseStarted;
+    public event Action<int> OnCombatPhaseStarted;
+    public event Action<int> OnStageCleared;
+    public event Action OnAllStagesCompleted;
+
     private int currentStageIndex = 0;
     private float phaseTimer;
     private StagePhase currentPhase;
 
     private Coroutine timerShowRoutine;
+    private Coroutine stageTransitionRoutine;
 
     private int StageCount
     {
@@ -62,6 +71,12 @@ public class StageManager : MonoBehaviour
     {
         if (enemySpawner != null)
             enemySpawner.OnWaveCompleted -= HandleWaveCompleted;
+
+        if (stageTransitionRoutine != null)
+        {
+            StopCoroutine(stageTransitionRoutine);
+            stageTransitionRoutine = null;
+        }
     }
 
     private void Start()
@@ -100,8 +115,10 @@ public class StageManager : MonoBehaviour
         currentPhase = StagePhase.Loot;
         phaseTimer = lootDuration;
 
+        int stageNumber = currentStageIndex + 1;
+
         if (stageText != null)
-            stageText.text = $"Stage {currentStageIndex + 1}";
+            stageText.text = $"Stage {stageNumber}";
 
         if (phaseText != null)
             phaseText.text = "Loot Phase";
@@ -119,7 +136,9 @@ public class StageManager : MonoBehaviour
             lootSpawner.SpawnLootForStage(pickupCount);
         }
 
-        Debug.Log($"Stage {currentStageIndex + 1} Loot Phase started.");
+        OnLootPhaseStarted?.Invoke(stageNumber);
+
+        Debug.Log($"Stage {stageNumber} Loot Phase started.");
     }
 
     private void BeginCombatPhase()
@@ -132,8 +151,10 @@ public class StageManager : MonoBehaviour
 
         currentPhase = StagePhase.Combat;
 
+        int stageNumber = currentStageIndex + 1;
+
         if (stageText != null)
-            stageText.text = $"Stage {currentStageIndex + 1}";
+            stageText.text = $"Stage {stageNumber}";
 
         if (phaseText != null)
             phaseText.text = "Combat Phase";
@@ -152,7 +173,9 @@ public class StageManager : MonoBehaviour
             enemySpawner.StartWave(enemyCount, enemyDamage, enemyHealth);
         }
 
-        Debug.Log($"Stage {currentStageIndex + 1} Combat Phase started.");
+        OnCombatPhaseStarted?.Invoke(stageNumber);
+
+        Debug.Log($"Stage {stageNumber} Combat Phase started.");
     }
 
     private void HandleWaveCompleted()
@@ -160,17 +183,39 @@ public class StageManager : MonoBehaviour
         if (currentPhase != StagePhase.Combat)
             return;
 
-        Debug.Log($"Stage {currentStageIndex + 1} Combat Phase completed.");
+        int clearedStageNumber = currentStageIndex + 1;
+
+        Debug.Log($"Stage {clearedStageNumber} Combat Phase completed.");
+
+        currentPhase = StagePhase.Transition;
+
+        if (phaseText != null)
+            phaseText.text = "Stage Cleared";
+
+        OnStageCleared?.Invoke(clearedStageNumber);
+
+        if (stageTransitionRoutine != null)
+            StopCoroutine(stageTransitionRoutine);
+
+        stageTransitionRoutine = StartCoroutine(StageClearedRoutine());
+    }
+
+    private IEnumerator StageClearedRoutine()
+    {
+        yield return new WaitForSeconds(stageClearDelay);
 
         currentStageIndex++;
 
         if (currentStageIndex >= StageCount)
         {
             CompleteAllStages();
-            return;
+        }
+        else
+        {
+            BeginLootPhase();
         }
 
-        BeginLootPhase();
+        stageTransitionRoutine = null;
     }
 
     private void CompleteAllStages()
@@ -187,6 +232,8 @@ public class StageManager : MonoBehaviour
             phaseText.text = "You Win";
 
         HideTimerUI();
+
+        OnAllStagesCompleted?.Invoke();
 
         Debug.Log("All stages completed. You Win.");
     }

@@ -21,6 +21,13 @@ public class EnemyController : MonoBehaviour
     [SerializeField] private float playerDetectionRange = 6f;
     [SerializeField] private float rotationSpeed = 180f;
 
+    [Header("Stairs")]
+    [SerializeField] private string stairsTag = "Stairs";
+    [SerializeField] private float stairsClimbSpeed = 1.25f;
+    [SerializeField] private float maxStairsYVelocity = 1.5f;
+    [SerializeField] private float stairsMoveSpeedMultiplier = 0.6f;
+    [SerializeField] private float stairsContactMemory = 0.05f;
+
     [Header("Attack")]
     [SerializeField] private int damage = 10;
     [SerializeField] private float attackCooldown = 1f;
@@ -40,12 +47,21 @@ public class EnemyController : MonoBehaviour
     private float attackRange;
     private float lastAttackTime;
 
+    private float stairsContactTimer;
+
     public bool IsRanged => enemyType == EnemyType.Ranged;
     public float AttackRange => attackRange;
+
+    private bool IsOnStairs => stairsContactTimer > 0f;
 
     private void Awake()
     {
         rb = GetComponent<Rigidbody>();
+
+        rb.constraints |= RigidbodyConstraints.FreezeRotationX;
+        rb.constraints |= RigidbodyConstraints.FreezeRotationZ;
+        rb.interpolation = RigidbodyInterpolation.Interpolate;
+        rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
 
         if (animator == null)
             animator = GetComponentInChildren<Animator>();
@@ -68,7 +84,22 @@ public class EnemyController : MonoBehaviour
 
     private void FixedUpdate()
     {
+        if (stairsContactTimer > 0f)
+            stairsContactTimer -= Time.fixedDeltaTime;
+
         MoveAndAttack();
+    }
+
+    private void OnCollisionStay(Collision collision)
+    {
+        if (ColliderHasStairsTag(collision.collider))
+            stairsContactTimer = stairsContactMemory;
+    }
+
+    private void OnTriggerStay(Collider other)
+    {
+        if (ColliderHasStairsTag(other))
+            stairsContactTimer = stairsContactMemory;
     }
 
     public void InitializeTargets()
@@ -109,7 +140,7 @@ public class EnemyController : MonoBehaviour
             return;
         }
 
-        float distanceToPlayer = Vector3.Distance(transform.position, playerTarget.position);
+        float distanceToPlayer = GetHorizontalDistance(playerTarget);
 
         if (distanceToPlayer <= playerDetectionRange)
             currentTarget = playerTarget;
@@ -118,7 +149,7 @@ public class EnemyController : MonoBehaviour
 
         if (currentTarget == chestTarget)
         {
-            float distanceToChest = Vector3.Distance(transform.position, chestTarget.position);
+            float distanceToChest = GetHorizontalDistance(chestTarget);
 
             if (distanceToChest <= attackRange)
                 lockedOnChest = true;
@@ -148,21 +179,55 @@ public class EnemyController : MonoBehaviour
             rb.MoveRotation(newRotation);
         }
 
-        float distance = Vector3.Distance(transform.position, currentTarget.position);
+        float distance = GetHorizontalDistance(currentTarget);
 
         if (distance > attackRange)
         {
-            Vector3 moveDir = direction.normalized;
-            Vector3 velocity = rb.linearVelocity;
-            velocity.x = moveDir.x * moveSpeed;
-            velocity.z = moveDir.z * moveSpeed;
-            rb.linearVelocity = velocity;
+            MoveToTarget(direction);
         }
         else
         {
             StopHorizontalMovement();
             TryAttack();
         }
+    }
+
+    private void MoveToTarget(Vector3 direction)
+    {
+        if (direction.sqrMagnitude <= 0.001f)
+        {
+            StopHorizontalMovement();
+            return;
+        }
+
+        Vector3 moveDir = direction.normalized;
+        float finalMoveSpeed = moveSpeed;
+
+        Vector3 velocity = rb.linearVelocity;
+
+        if (IsOnStairs)
+        {
+            finalMoveSpeed *= stairsMoveSpeedMultiplier;
+
+            if (velocity.y < maxStairsYVelocity)
+                velocity.y = Mathf.Max(velocity.y, stairsClimbSpeed);
+        }
+
+        velocity.x = moveDir.x * finalMoveSpeed;
+        velocity.z = moveDir.z * finalMoveSpeed;
+
+        rb.linearVelocity = velocity;
+    }
+
+    private float GetHorizontalDistance(Transform target)
+    {
+        Vector3 enemyPosition = transform.position;
+        Vector3 targetPosition = target.position;
+
+        enemyPosition.y = 0f;
+        targetPosition.y = 0f;
+
+        return Vector3.Distance(enemyPosition, targetPosition);
     }
 
     private void StopHorizontalMovement()
@@ -194,5 +259,26 @@ public class EnemyController : MonoBehaviour
             damageable.TakeDamage(damage);
             lastAttackTime = Time.time;
         }
+    }
+
+    private bool ColliderHasStairsTag(Collider collider)
+    {
+        if (collider == null)
+            return false;
+
+        if (collider.CompareTag(stairsTag))
+            return true;
+
+        Transform current = collider.transform.parent;
+
+        while (current != null)
+        {
+            if (current.CompareTag(stairsTag))
+                return true;
+
+            current = current.parent;
+        }
+
+        return false;
     }
 }
