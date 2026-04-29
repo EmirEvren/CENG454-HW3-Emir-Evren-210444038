@@ -8,6 +8,7 @@ TagManager:
   - firePoint
   - LobbyCamera
   - Wall
+  - Stairs
   layers:
   - Default
   - TransparentFX
