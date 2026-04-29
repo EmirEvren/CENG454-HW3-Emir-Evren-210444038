@@ -1,5 +1,7 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
+using System.Collections;
 
 public class StageManager : MonoBehaviour
 {
@@ -18,6 +20,10 @@ public class StageManager : MonoBehaviour
     [SerializeField] private TMP_Text stageText;
     [SerializeField] private TMP_Text phaseText;
     [SerializeField] private TMP_Text timerText;
+    [SerializeField] private Image timerImage;
+
+    [Header("Timer UI Settings")]
+    [SerializeField] private float timerTextAppearDelay = 0.2f;
 
     [Header("Stage Settings")]
     [SerializeField] private float lootDuration = 20f;
@@ -30,6 +36,8 @@ public class StageManager : MonoBehaviour
     private int currentStageIndex = 0;
     private float phaseTimer;
     private StagePhase currentPhase;
+
+    private Coroutine timerShowRoutine;
 
     private int StageCount
     {
@@ -101,6 +109,8 @@ public class StageManager : MonoBehaviour
         if (timerText != null)
             timerText.text = $"Time: {Mathf.CeilToInt(phaseTimer)}";
 
+        ShowTimerUI();
+
         if (lootSpawner != null)
         {
             lootSpawner.ClearLoot();
@@ -128,8 +138,7 @@ public class StageManager : MonoBehaviour
         if (phaseText != null)
             phaseText.text = "Combat Phase";
 
-        if (timerText != null)
-            timerText.text = "";
+        HideTimerUI();
 
         if (lootSpawner != null)
             lootSpawner.ClearLoot();
@@ -177,9 +186,50 @@ public class StageManager : MonoBehaviour
         if (phaseText != null)
             phaseText.text = "You Win";
 
-        if (timerText != null)
-            timerText.text = "";
+        HideTimerUI();
 
         Debug.Log("All stages completed. You Win.");
+    }
+
+    private void ShowTimerUI()
+    {
+        if (timerShowRoutine != null)
+            StopCoroutine(timerShowRoutine);
+
+        timerShowRoutine = StartCoroutine(ShowTimerUICoroutine());
+    }
+
+    private IEnumerator ShowTimerUICoroutine()
+    {
+        if (timerImage != null)
+            timerImage.gameObject.SetActive(true);
+
+        if (timerText != null)
+            timerText.gameObject.SetActive(false);
+
+        yield return new WaitForSeconds(timerTextAppearDelay);
+
+        if (timerText != null)
+            timerText.gameObject.SetActive(true);
+
+        timerShowRoutine = null;
+    }
+
+    private void HideTimerUI()
+    {
+        if (timerShowRoutine != null)
+        {
+            StopCoroutine(timerShowRoutine);
+            timerShowRoutine = null;
+        }
+
+        if (timerText != null)
+        {
+            timerText.text = "";
+            timerText.gameObject.SetActive(false);
+        }
+
+        if (timerImage != null)
+            timerImage.gameObject.SetActive(false);
     }
 }
