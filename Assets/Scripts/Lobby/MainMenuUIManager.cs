@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class MainMenuUIManager : MonoBehaviour
 {
@@ -9,30 +10,17 @@ public class MainMenuUIManager : MonoBehaviour
     [SerializeField] private GameObject mainMenuPanel;
     [SerializeField] private GameObject settingsPanel;
 
+    [Header("Managers")]
+    [SerializeField] private PauseMenuManager pauseMenuManager;
+    [SerializeField] private LobbyMusicPlayer lobbyMusicPlayer;
+
     [Header("Optional Camera References")]
     [SerializeField] private Camera menuCamera;
     [SerializeField] private Camera gameplayCamera;
 
     private void Start()
     {
-        if (gameSceneRoot != null)
-            gameSceneRoot.SetActive(false);
-
-        if (mainMenuPanel != null)
-            mainMenuPanel.SetActive(true);
-
-        if (settingsPanel != null)
-            settingsPanel.SetActive(false);
-
-        RefreshLobbyCamera();
-        RefreshGameplayCamera();
-
-        ShowLobbyCamera();
-
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
-
-        Time.timeScale = 1f;
+        ReturnToMainMenu();
     }
 
     public void OnPlayClicked()
@@ -55,6 +43,51 @@ public class MainMenuUIManager : MonoBehaviour
         Cursor.visible = false;
 
         Time.timeScale = 1f;
+
+        if (pauseMenuManager != null)
+            pauseMenuManager.EnablePause();
+
+        if (lobbyMusicPlayer != null)
+            lobbyMusicPlayer.StopLobbyMusic();
+    }
+
+    public void ReturnToMainMenu()
+    {
+        Time.timeScale = 1f;
+
+        if (gameSceneRoot != null)
+            gameSceneRoot.SetActive(false);
+
+        if (mainMenuPanel != null)
+            mainMenuPanel.SetActive(true);
+
+        if (settingsPanel != null)
+            settingsPanel.SetActive(false);
+
+        if (pauseMenuManager != null)
+            pauseMenuManager.DisablePause();
+
+        RefreshLobbyCamera();
+        RefreshGameplayCamera();
+
+        ShowLobbyCamera();
+
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+        if (lobbyMusicPlayer != null)
+            lobbyMusicPlayer.PlayLobbyMusic();
+    }
+
+    public void ReturnToMainMenuAndResetGame()
+    {
+        Time.timeScale = 1f;
+
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+        Scene currentScene = SceneManager.GetActiveScene();
+        SceneManager.LoadScene(currentScene.name);
     }
 
     public void OnSettingsClicked()
@@ -77,6 +110,8 @@ public class MainMenuUIManager : MonoBehaviour
 
     public void OnQuitClicked()
     {
+        Time.timeScale = 1f;
+
         Application.Quit();
 
 #if UNITY_EDITOR
