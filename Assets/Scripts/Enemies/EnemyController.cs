@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Audio;
 
 [RequireComponent(typeof(Rigidbody))]
 public class EnemyController : MonoBehaviour
@@ -32,6 +33,18 @@ public class EnemyController : MonoBehaviour
     [SerializeField] private int damage = 10;
     [SerializeField] private float attackCooldown = 1f;
 
+    [Header("Attack Audio")]
+    [SerializeField] private AudioClip meleeAttackSound1;
+    [SerializeField] private AudioClip meleeAttackSound2;
+    [SerializeField] private AudioClip rangedAttackSound1;
+    [SerializeField] private AudioClip rangedAttackSound2;
+
+    [SerializeField] private AudioMixerGroup sfxMixerGroup;
+    [SerializeField, Range(0f, 1f)] private float attackSoundVolume = 1f;
+    [SerializeField] private bool use3DSound = true;
+    [SerializeField] private float minSoundDistance = 2f;
+    [SerializeField] private float maxSoundDistance = 18f;
+
     [Header("Melee Settings")]
     [SerializeField] private float meleeAttackRange = 1.5f;
 
@@ -42,12 +55,17 @@ public class EnemyController : MonoBehaviour
     [SerializeField] private Animator animator;
 
     private Rigidbody rb;
+    private AudioSource audioSource;
+
     private Transform currentTarget;
     private bool lockedOnChest;
     private float attackRange;
     private float lastAttackTime;
 
     private float stairsContactTimer;
+
+    private int meleeAttackSoundIndex;
+    private int rangedAttackSoundIndex;
 
     public bool IsRanged => enemyType == EnemyType.Ranged;
     public float AttackRange => attackRange;
@@ -62,6 +80,29 @@ public class EnemyController : MonoBehaviour
         rb.constraints |= RigidbodyConstraints.FreezeRotationZ;
         rb.interpolation = RigidbodyInterpolation.Interpolate;
         rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+
+        audioSource = GetComponent<AudioSource>();
+        if (audioSource == null)
+            audioSource = gameObject.AddComponent<AudioSource>();
+
+        audioSource.playOnAwake = false;
+        audioSource.loop = false;
+        audioSource.volume = attackSoundVolume;
+
+        if (use3DSound)
+        {
+            audioSource.spatialBlend = 1f;
+            audioSource.minDistance = minSoundDistance;
+            audioSource.maxDistance = maxSoundDistance;
+            audioSource.rolloffMode = AudioRolloffMode.Linear;
+        }
+        else
+        {
+            audioSource.spatialBlend = 0f;
+        }
+
+        if (sfxMixerGroup != null)
+            audioSource.outputAudioMixerGroup = sfxMixerGroup;
 
         if (animator == null)
             animator = GetComponentInChildren<Animator>();
@@ -256,9 +297,85 @@ public class EnemyController : MonoBehaviour
             if (animator != null)
                 animator.SetTrigger("Attack");
 
+            PlayAttackSound();
+
             damageable.TakeDamage(damage);
             lastAttackTime = Time.time;
         }
+    }
+
+    private void PlayAttackSound()
+    {
+        if (audioSource == null)
+            return;
+
+        AudioClip selectedClip = null;
+
+        if (enemyType == EnemyType.Melee)
+        {
+            selectedClip = GetNextMeleeAttackSound();
+        }
+        else if (enemyType == EnemyType.Ranged)
+        {
+            selectedClip = GetNextRangedAttackSound();
+        }
+
+        if (selectedClip == null)
+            return;
+
+        audioSource.PlayOneShot(selectedClip, attackSoundVolume);
+    }
+
+    private AudioClip GetNextMeleeAttackSound()
+    {
+        AudioClip selectedClip;
+
+        if (meleeAttackSoundIndex == 0)
+            selectedClip = meleeAttackSound1;
+        else
+            selectedClip = meleeAttackSound2;
+
+        meleeAttackSoundIndex++;
+
+        if (meleeAttackSoundIndex > 1)
+            meleeAttackSoundIndex = 0;
+
+        if (selectedClip == null)
+        {
+            if (meleeAttackSound1 != null)
+                return meleeAttackSound1;
+
+            if (meleeAttackSound2 != null)
+                return meleeAttackSound2;
+        }
+
+        return selectedClip;
+    }
+
+    private AudioClip GetNextRangedAttackSound()
+    {
+        AudioClip selectedClip;
+
+        if (rangedAttackSoundIndex == 0)
+            selectedClip = rangedAttackSound1;
+        else
+            selectedClip = rangedAttackSound2;
+
+        rangedAttackSoundIndex++;
+
+        if (rangedAttackSoundIndex > 1)
+            rangedAttackSoundIndex = 0;
+
+        if (selectedClip == null)
+        {
+            if (rangedAttackSound1 != null)
+                return rangedAttackSound1;
+
+            if (rangedAttackSound2 != null)
+                return rangedAttackSound2;
+        }
+
+        return selectedClip;
     }
 
     private bool ColliderHasStairsTag(Collider collider)

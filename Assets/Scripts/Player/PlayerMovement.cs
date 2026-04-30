@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Audio;
 
 [RequireComponent(typeof(Rigidbody))]
 [RequireComponent(typeof(CapsuleCollider))]
@@ -32,8 +33,22 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float standingCameraY = 1.6f;
     [SerializeField] private float crouchCameraY = 1.1f;
 
+    [Header("Footstep Audio")]
+    [SerializeField] private AudioClip walkSound;
+    [SerializeField] private AudioClip runSound;
+    [SerializeField] private AudioClip crouchWalkSound;
+    [SerializeField] private AudioMixerGroup sfxMixerGroup;
+    [SerializeField, Range(0f, 1f)] private float footstepVolume = 0.75f;
+
+    [Header("Footstep Timing")]
+    [SerializeField] private float walkStepInterval = 0.45f;
+    [SerializeField] private float runStepInterval = 0.28f;
+    [SerializeField] private float crouchStepInterval = 0.65f;
+    [SerializeField] private float minMoveSpeedForFootstep = 0.15f;
+
     private Rigidbody rb;
     private CapsuleCollider capsuleCollider;
+    private AudioSource footstepAudioSource;
 
     private float yaw;
     private float pitch;
@@ -51,6 +66,8 @@ public class PlayerMovement : MonoBehaviour
     private Vector3 standingCenter;
     private Vector3 crouchCenter;
 
+    private float footstepTimer;
+
     private void Awake()
     {
         rb = GetComponent<Rigidbody>();
@@ -63,6 +80,8 @@ public class PlayerMovement : MonoBehaviour
 
         if (animator == null)
             animator = GetComponentInChildren<Animator>();
+
+        SetupFootstepAudio();
 
         yaw = transform.eulerAngles.y;
         pitch = startPitch;
@@ -89,6 +108,7 @@ public class PlayerMovement : MonoBehaviour
     {
         HandleMouseLook();
         HandleInput();
+        HandleFootsteps();
         UpdateAnimator();
     }
 
@@ -102,6 +122,22 @@ public class PlayerMovement : MonoBehaviour
         HandleCrouchPhysics();
         HandleMovement();
         HandleJump();
+    }
+
+    private void SetupFootstepAudio()
+    {
+        footstepAudioSource = GetComponent<AudioSource>();
+
+        if (footstepAudioSource == null)
+            footstepAudioSource = gameObject.AddComponent<AudioSource>();
+
+        footstepAudioSource.playOnAwake = false;
+        footstepAudioSource.loop = false;
+        footstepAudioSource.spatialBlend = 0f;
+        footstepAudioSource.volume = footstepVolume;
+
+        if (sfxMixerGroup != null)
+            footstepAudioSource.outputAudioMixerGroup = sfxMixerGroup;
     }
 
     private void HandleMouseLook()
@@ -162,6 +198,79 @@ public class PlayerMovement : MonoBehaviour
         rb.linearVelocity = velocity;
     }
 
+    private void HandleFootsteps()
+    {
+        if (!isGrounded)
+        {
+            footstepTimer = 0f;
+            return;
+        }
+
+        Vector3 horizontalVelocity = rb.linearVelocity;
+        horizontalVelocity.y = 0f;
+
+        bool isMoving = horizontalVelocity.magnitude > minMoveSpeedForFootstep;
+
+        if (!isMoving)
+        {
+            footstepTimer = 0f;
+            return;
+        }
+
+        footstepTimer -= Time.deltaTime;
+
+        if (footstepTimer > 0f)
+            return;
+
+        PlayFootstepSound();
+        footstepTimer = GetCurrentFootstepInterval();
+    }
+
+    private void PlayFootstepSound()
+    {
+        if (footstepAudioSource == null)
+            return;
+
+        AudioClip selectedClip = GetCurrentFootstepClip();
+
+        if (selectedClip == null)
+            return;
+
+        footstepAudioSource.PlayOneShot(selectedClip, footstepVolume);
+    }
+
+    private AudioClip GetCurrentFootstepClip()
+    {
+        if (isCrouching)
+        {
+            if (crouchWalkSound != null)
+                return crouchWalkSound;
+
+            return walkSound;
+        }
+
+        if (isRunning)
+        {
+            if (runSound != null)
+                return runSound;
+
+            return walkSound;
+        }
+
+        return walkSound;
+    }
+
+    private float GetCurrentFootstepInterval()
+    {
+        if (isCrouching)
+            return crouchStepInterval;
+
+        if (isRunning)
+            return runStepInterval;
+
+        return walkStepInterval;
+    }
+
     private void HandleJump()
     {
         if (!jumpQueued)
@@ -185,6 +294,8 @@ public class PlayerMovement : MonoBehaviour
         rb.linearVelocity = velocity;
 
         rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
+
+        footstepTimer = 0f;
 
         if (animator != null)
             animator.SetTrigger("Jump");

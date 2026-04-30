@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Audio;
 
 public class AmmoInventory : MonoBehaviour
 {
@@ -12,10 +13,32 @@ public class AmmoInventory : MonoBehaviour
     [Header("Current Selection")]
     [SerializeField] private AmmoColor currentAmmoColor = AmmoColor.None;
 
+    [Header("Selection Audio")]
+    [SerializeField] private AudioClip ammoSwitchSound;
+    [SerializeField] private AudioMixerGroup sfxMixerGroup;
+    [SerializeField, Range(0f, 1f)] private float switchSoundVolume = 1f;
+
+    private AudioSource audioSource;
+
     public AmmoColor CurrentAmmoColor => currentAmmoColor;
 
     public event Action<AmmoColor, int> OnAmmoChanged;
     public event Action<AmmoColor> OnCurrentColorChanged;
+
+    private void Awake()
+    {
+        audioSource = GetComponent<AudioSource>();
+
+        if (audioSource == null)
+            audioSource = gameObject.AddComponent<AudioSource>();
+
+        audioSource.playOnAwake = false;
+        audioSource.loop = false;
+        audioSource.spatialBlend = 0f;
+
+        if (sfxMixerGroup != null)
+            audioSource.outputAudioMixerGroup = sfxMixerGroup;
+    }
 
     private void Start()
     {
@@ -77,6 +100,9 @@ public class AmmoInventory : MonoBehaviour
         if (currentAmmoColor == color) return;
 
         currentAmmoColor = color;
+
+        PlayAmmoSwitchSound();
+
         OnCurrentColorChanged?.Invoke(currentAmmoColor);
     }
 
@@ -117,5 +143,13 @@ public class AmmoInventory : MonoBehaviour
         OnAmmoChanged?.Invoke(AmmoColor.Blue, blueAmmo);
         OnAmmoChanged?.Invoke(AmmoColor.Green, greenAmmo);
         OnAmmoChanged?.Invoke(AmmoColor.Yellow, yellowAmmo);
+    }
+
+    private void PlayAmmoSwitchSound()
+    {
+        if (audioSource == null || ammoSwitchSound == null)
+            return;
+
+        audioSource.PlayOneShot(ammoSwitchSound, switchSoundVolume);
     }
 }

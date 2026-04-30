@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Audio;
 using UnityEngine.UI;
 
 public class StageManager : MonoBehaviour
@@ -27,6 +28,13 @@ public class StageManager : MonoBehaviour
     [Header("Timer UI Settings")]
     [SerializeField] private float timerTextAppearDelay = 0.2f;
 
+    [Header("Stage Start Audio")]
+    [SerializeField] private AudioClip stage1StartSound;
+    [SerializeField] private AudioClip stage2StartSound;
+    [SerializeField] private AudioClip stage3StartSound;
+    [SerializeField] private AudioMixerGroup sfxMixerGroup;
+    [SerializeField, Range(0f, 1f)] private float stageStartSoundVolume = 1f;
+
     [Header("Stage Settings")]
     [SerializeField] private float lootDuration = 20f;
     [SerializeField] private float stageClearDelay = 2f;
@@ -48,6 +56,8 @@ public class StageManager : MonoBehaviour
     private Coroutine timerShowRoutine;
     private Coroutine stageTransitionRoutine;
 
+    private AudioSource audioSource;
+
     private int StageCount
     {
         get
@@ -59,6 +69,22 @@ public class StageManager : MonoBehaviour
                 enemyHealthPerStage.Length
             );
         }
+    }
+
+    private void Awake()
+    {
+        audioSource = GetComponent<AudioSource>();
+
+        if (audioSource == null)
+            audioSource = gameObject.AddComponent<AudioSource>();
+
+        audioSource.playOnAwake = false;
+        audioSource.loop = false;
+        audioSource.spatialBlend = 0f;
+        audioSource.volume = stageStartSoundVolume;
+
+        if (sfxMixerGroup != null)
+            audioSource.outputAudioMixerGroup = sfxMixerGroup;
     }
 
     private void OnEnable()
@@ -127,6 +153,8 @@ public class StageManager : MonoBehaviour
             timerText.text = $"Time: {Mathf.CeilToInt(phaseTimer)}";
 
         ShowTimerUI();
+
+        PlayStageStartSound(stageNumber);
 
         if (lootSpawner != null)
         {
@@ -236,6 +264,34 @@ public class StageManager : MonoBehaviour
         OnAllStagesCompleted?.Invoke();
 
         Debug.Log("All stages completed. You Win.");
+    }
+
+    private void PlayStageStartSound(int stageNumber)
+    {
+        if (audioSource == null)
+            return;
+
+        AudioClip selectedClip = null;
+
+        switch (stageNumber)
+        {
+            case 1:
+                selectedClip = stage1StartSound;
+                break;
+
+            case 2:
+                selectedClip = stage2StartSound;
+                break;
+
+            case 3:
+                selectedClip = stage3StartSound;
+                break;
+        }
+
+        if (selectedClip == null)
+            return;
+
+        audioSource.PlayOneShot(selectedClip, stageStartSoundVolume);
     }
 
     private void ShowTimerUI()
