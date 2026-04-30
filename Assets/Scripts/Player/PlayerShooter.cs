@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Audio;
 
 public class PlayerShooter : MonoBehaviour
 {
@@ -19,6 +20,12 @@ public class PlayerShooter : MonoBehaviour
     [SerializeField] private float maxAimDistance = 200f;
     [SerializeField] private LayerMask aimMask = ~0;
 
+    [Header("Shooting Audio")]
+    [SerializeField] private AudioClip shootSound;
+    [SerializeField] private AudioMixerGroup sfxMixerGroup;
+    [SerializeField, Range(0f, 1f)] private float shootSoundVolume = 1f;
+
+    private AudioSource audioSource;
     private float fireTimer;
 
     private void Awake()
@@ -35,6 +42,19 @@ public class PlayerShooter : MonoBehaviour
             if (firePointObj != null)
                 firePoint = firePointObj.transform;
         }
+
+        audioSource = GetComponent<AudioSource>();
+
+        if (audioSource == null)
+            audioSource = gameObject.AddComponent<AudioSource>();
+
+        audioSource.playOnAwake = false;
+        audioSource.loop = false;
+        audioSource.spatialBlend = 0f;
+        audioSource.volume = shootSoundVolume;
+
+        if (sfxMixerGroup != null)
+            audioSource.outputAudioMixerGroup = sfxMixerGroup;
     }
 
     private void Update()
@@ -117,6 +137,16 @@ public class PlayerShooter : MonoBehaviour
                 shootDirection
             );
         }
+
+        PlayShootSound();
+    }
+
+    private void PlayShootSound()
+    {
+        if (audioSource == null || shootSound == null)
+            return;
+
+        audioSource.PlayOneShot(shootSound, shootSoundVolume);
     }
 
     private Vector3 GetAimPoint()

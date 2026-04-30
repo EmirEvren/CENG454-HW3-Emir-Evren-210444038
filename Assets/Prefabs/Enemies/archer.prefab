@@ -685,8 +685,26 @@ MonoBehaviour:
   moveSpeed: 3
   playerDetectionRange: 6
   rotationSpeed: 10
+  stairsTag: Stairs
+  stairsClimbSpeed: 1.25
+  maxStairsYVelocity: 1.5
+  stairsMoveSpeedMultiplier: 0.6
+  stairsContactMemory: 0.05
   damage: 10
+<<<<<<< Updated upstream
   attackCooldown: 1
+=======
+  attackCooldown: 2
+  meleeAttackSound1: {fileID: 8300000, guid: c5a523cdf8d6c458cb498fc77c2e8573, type: 3}
+  meleeAttackSound2: {fileID: 8300000, guid: fc3473918dbb24eb3a0eec4019ad8b6d, type: 3}
+  rangedAttackSound1: {fileID: 8300000, guid: 23c6a4a772bbb4978953367c35df6b1a, type: 3}
+  rangedAttackSound2: {fileID: 8300000, guid: e5513300316d44aa6acab599c3b4f943, type: 3}
+  sfxMixerGroup: {fileID: -3637463329593643297, guid: 85d7a89c5adc55940add9121ea4de6a5, type: 2}
+  attackSoundVolume: 1
+  use3DSound: 1
+  minSoundDistance: 2
+  maxSoundDistance: 18
+>>>>>>> Stashed changes
   meleeAttackRange: 1.5
   fixedRangedAttackRange: 9
   animator: {fileID: 5038560258789443140}
