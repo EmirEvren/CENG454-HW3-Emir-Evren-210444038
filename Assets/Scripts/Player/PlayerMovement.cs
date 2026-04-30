@@ -56,6 +56,11 @@ public class PlayerMovement : MonoBehaviour
         rb = GetComponent<Rigidbody>();
         capsuleCollider = GetComponent<CapsuleCollider>();
 
+        rb.constraints |= RigidbodyConstraints.FreezeRotationX;
+        rb.constraints |= RigidbodyConstraints.FreezeRotationZ;
+        rb.interpolation = RigidbodyInterpolation.Interpolate;
+        rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+
         if (animator == null)
             animator = GetComponentInChildren<Animator>();
 
@@ -74,13 +79,10 @@ public class PlayerMovement : MonoBehaviour
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
 
+        ApplyCameraHeight(standingCameraY);
+
         if (cameraPivot != null)
-        {
-            Vector3 camPos = cameraPivot.localPosition;
-            camPos.y = standingCameraY;
-            cameraPivot.localPosition = camPos;
             cameraPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
-        }
     }
 
     private void Update()
@@ -94,6 +96,9 @@ public class PlayerMovement : MonoBehaviour
     {
         isGrounded = CheckGrounded();
 
+        rb.angularVelocity = Vector3.zero;
+
+        ApplyBodyRotation();
         HandleCrouchPhysics();
         HandleMovement();
         HandleJump();
@@ -101,6 +106,9 @@ public class PlayerMovement : MonoBehaviour
 
     private void HandleMouseLook()
     {
+        if (Cursor.lockState != CursorLockMode.Locked)
+            return;
+
         float mouseX = Input.GetAxisRaw("Mouse X");
         float mouseY = Input.GetAxisRaw("Mouse Y");
 
@@ -108,10 +116,14 @@ public class PlayerMovement : MonoBehaviour
         pitch -= mouseY * mouseSensitivityY;
         pitch = Mathf.Clamp(pitch, minPitch, maxPitch);
 
-        transform.rotation = Quaternion.Euler(0f, yaw, 0f);
-
         if (cameraPivot != null)
             cameraPivot.localRotation = Quaternion.Euler(pitch, 0f, 0f);
+    }
+
+    private void ApplyBodyRotation()
+    {
+        Quaternion targetRotation = Quaternion.Euler(0f, yaw, 0f);
+        rb.MoveRotation(targetRotation);
     }
 
     private void HandleInput()
@@ -136,11 +148,16 @@ public class PlayerMovement : MonoBehaviour
         else if (isRunning)
             speed = runSpeed;
 
-        Vector3 moveDir = (transform.right * inputX + transform.forward * inputZ).normalized;
-        Vector3 velocity = rb.linearVelocity;
+        Quaternion yawRotation = Quaternion.Euler(0f, yaw, 0f);
 
-        velocity.x = moveDir.x * speed;
-        velocity.z = moveDir.z * speed;
+        Vector3 inputDirection = new Vector3(inputX, 0f, inputZ);
+        inputDirection = Vector3.ClampMagnitude(inputDirection, 1f);
+
+        Vector3 moveDirection = yawRotation * inputDirection;
+
+        Vector3 velocity = rb.linearVelocity;
+        velocity.x = moveDirection.x * speed;
+        velocity.z = moveDirection.z * speed;
 
         rb.linearVelocity = velocity;
     }
@@ -199,25 +216,25 @@ public class PlayerMovement : MonoBehaviour
             capsuleCollider.height = crouchHeight;
             capsuleCollider.center = crouchCenter;
 
-            if (cameraPivot != null)
-            {
-                Vector3 camPos = cameraPivot.localPosition;
-                camPos.y = crouchCameraY;
-                cameraPivot.localPosition = camPos;
-            }
+            ApplyCameraHeight(crouchCameraY);
         }
         else
         {
             capsuleCollider.height = standingHeight;
             capsuleCollider.center = standingCenter;
 
-            if (cameraPivot != null)
-            {
-                Vector3 camPos = cameraPivot.localPosition;
-                camPos.y = standingCameraY;
-                cameraPivot.localPosition = camPos;
-            }
+            ApplyCameraHeight(standingCameraY);
         }
+    }
+
+    private void ApplyCameraHeight(float height)
+    {
+        if (cameraPivot == null)
+            return;
+
+        Vector3 camPos = cameraPivot.localPosition;
+        camPos.y = height;
+        cameraPivot.localPosition = camPos;
     }
 
     private void UpdateAnimator()
@@ -253,7 +270,7 @@ public class PlayerMovement : MonoBehaviour
 
     private bool CanStandUp()
     {
-        if (isCrouching == false)
+        if (!isCrouching)
             return true;
 
         Bounds bounds = capsuleCollider.bounds;
