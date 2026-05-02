@@ -20,7 +20,7 @@ public class EnemyHealth : MonoBehaviour, IDamageable
 
     public event Action<EnemyHealth> OnEnemyDied;
     
-    // UI'a haber vermek için yeni eventimiz (Güncel Can, Maksimum Can)
+    
     public event Action<int, int> OnHealthChanged; 
 
     private void Awake()
@@ -36,7 +36,7 @@ public class EnemyHealth : MonoBehaviour, IDamageable
         maxHealth = newHealth;
         currentHealth = maxHealth;
         
-        // Başlangıçta can ayarlandığında UI'ı güncelle
+        
         OnHealthChanged?.Invoke(currentHealth, maxHealth); 
     }
 
@@ -52,7 +52,7 @@ public class EnemyHealth : MonoBehaviour, IDamageable
 
         currentHealth -= amount;
         
-        // Hasar yediğinde UI'ı güncelle
+       
         OnHealthChanged?.Invoke(currentHealth, maxHealth); 
 
         if (currentHealth <= 0)
