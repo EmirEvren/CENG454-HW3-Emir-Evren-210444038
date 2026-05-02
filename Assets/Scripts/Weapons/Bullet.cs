@@ -5,6 +5,11 @@ public class Bullet : MonoBehaviour, IPoolable
     [SerializeField] private float speed = 20f;
     [SerializeField] private float lifeTime = 3f;
 
+    [Header("Damage Modifier Chain")]
+    [SerializeField] private bool requireColorMatch = true;
+    [SerializeField] private bool useBonusDamageModifier = false;
+    [SerializeField, Min(0)] private int bonusDamage = 0;
+
     private int damage;
     private AmmoColor ammoColor = AmmoColor.None;
     private float timer;
@@ -14,6 +19,8 @@ public class Bullet : MonoBehaviour, IPoolable
     private Transform bulletRoot;
     private bool isReleased;
 
+    private IWeaponDamageModifier damageModifier;
+
     public AmmoColor AmmoColor => ammoColor;
     public int Damage => damage;
     public GameObject RootObject => bulletRoot != null ? bulletRoot.gameObject : gameObject;
@@ -21,6 +28,7 @@ public class Bullet : MonoBehaviour, IPoolable
     private void Awake()
     {
         bulletRoot = transform.parent != null ? transform.parent : transform;
+        BuildDamageModifierChain();
     }
 
     private void OnEnable()
@@ -57,6 +65,8 @@ public class Bullet : MonoBehaviour, IPoolable
         timer = lifeTime;
         isReleased = false;
 
+        BuildDamageModifierChain();
+
         if (moveDirection.sqrMagnitude > 0.001f)
             RootObject.transform.rotation = Quaternion.LookRotation(moveDirection);
     }
@@ -85,11 +95,7 @@ public class Bullet : MonoBehaviour, IPoolable
 
         if (enemy != null)
         {
-            if (enemy.EnemyColor == ammoColor)
-            {
-                enemy.TakeDamage(damage);
-            }
-
+            ApplyDamageToEnemy(enemy);
             ReturnToPool();
             return;
         }
@@ -98,6 +104,39 @@ public class Bullet : MonoBehaviour, IPoolable
         {
             ReturnToPool();
         }
+    }
+
+    private void ApplyDamageToEnemy(EnemyHealth enemy)
+    {
+        if (enemy == null)
+            return;
+
+        if (damageModifier == null)
+            BuildDamageModifierChain();
+
+        int finalDamage = damageModifier.ModifyDamage(
+            damage,
+            ammoColor,
+            enemy.EnemyColor
+        );
+
+        if (finalDamage <= 0)
+            return;
+
+        enemy.TakeDamage(finalDamage);
+    }
+
+    private void BuildDamageModifierChain()
+    {
+        IWeaponDamageModifier modifier = new BaseWeaponDamageModifier();
+
+        if (requireColorMatch)
+            modifier = new ColorMatchDamageModifier(modifier);
+
+        if (useBonusDamageModifier && bonusDamage > 0)
+            modifier = new BonusDamageModifier(modifier, bonusDamage);
+
+        damageModifier = modifier;
     }
 
     private void ReturnToPool()
