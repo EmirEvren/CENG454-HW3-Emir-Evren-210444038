@@ -13,13 +13,15 @@ public class EnemyController : MonoBehaviour
     [Header("Type")]
     [SerializeField] private EnemyType enemyType = EnemyType.Melee;
 
+    [Header("Target Strategy")]
+    [SerializeField] private EnemyTargetStrategy targetStrategy;
+
     [Header("Targets")]
     [SerializeField] private Transform playerTarget;
     [SerializeField] private Transform chestTarget;
 
     [Header("Movement")]
     [SerializeField] private float moveSpeed = 3f;
-    [SerializeField] private float playerDetectionRange = 6f;
     [SerializeField] private float rotationSpeed = 180f;
 
     [Header("Stairs")]
@@ -58,7 +60,6 @@ public class EnemyController : MonoBehaviour
     private AudioSource audioSource;
 
     private Transform currentTarget;
-    private bool lockedOnChest;
     private float attackRange;
     private float lastAttackTime;
 
@@ -82,6 +83,7 @@ public class EnemyController : MonoBehaviour
         rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
 
         audioSource = GetComponent<AudioSource>();
+
         if (audioSource == null)
             audioSource = gameObject.AddComponent<AudioSource>();
 
@@ -108,6 +110,7 @@ public class EnemyController : MonoBehaviour
             animator = GetComponentInChildren<Animator>();
 
         SetupEnemyType();
+        SetupTargetStrategy();
     }
 
     private void Start()
@@ -118,7 +121,7 @@ public class EnemyController : MonoBehaviour
     private void Update()
     {
         if (playerTarget == null || chestTarget == null)
-            return;
+            InitializeTargets();
 
         SelectTarget();
     }
@@ -148,6 +151,7 @@ public class EnemyController : MonoBehaviour
         if (playerTarget == null)
         {
             GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
+
             if (playerObj != null)
                 playerTarget = playerObj.transform;
         }
@@ -155,6 +159,7 @@ public class EnemyController : MonoBehaviour
         if (chestTarget == null)
         {
             ChestHealth chest = FindFirstObjectByType<ChestHealth>();
+
             if (chest != null)
                 chestTarget = chest.transform;
         }
@@ -173,28 +178,34 @@ public class EnemyController : MonoBehaviour
             attackRange = fixedRangedAttackRange;
     }
 
+    private void SetupTargetStrategy()
+    {
+        if (targetStrategy == null)
+            targetStrategy = GetComponent<EnemyTargetStrategy>();
+
+        if (targetStrategy == null)
+        {
+            targetStrategy = gameObject.AddComponent<PlayerPriorityTargetStrategy>();
+
+            Debug.LogWarning(
+                $"{gameObject.name}: No target strategy assigned. PlayerPriorityTargetStrategy was added as fallback."
+            );
+        }
+    }
+
     private void SelectTarget()
     {
-        if (lockedOnChest)
+        if (targetStrategy == null)
         {
             currentTarget = chestTarget;
             return;
         }
 
-        float distanceToPlayer = GetHorizontalDistance(playerTarget);
-
-        if (distanceToPlayer <= playerDetectionRange)
-            currentTarget = playerTarget;
-        else
-            currentTarget = chestTarget;
-
-        if (currentTarget == chestTarget)
-        {
-            float distanceToChest = GetHorizontalDistance(chestTarget);
-
-            if (distanceToChest <= attackRange)
-                lockedOnChest = true;
-        }
+        currentTarget = targetStrategy.SelectTarget(
+            transform,
+            playerTarget,
+            chestTarget
+        );
     }
 
     private void MoveAndAttack()
@@ -262,6 +273,9 @@ public class EnemyController : MonoBehaviour
 
     private float GetHorizontalDistance(Transform target)
     {
+        if (target == null)
+            return float.MaxValue;
+
         Vector3 enemyPosition = transform.position;
         Vector3 targetPosition = target.position;
 
