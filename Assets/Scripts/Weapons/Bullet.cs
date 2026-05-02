@@ -1,19 +1,22 @@
 using UnityEngine;
 
-public class Bullet : MonoBehaviour
+public class Bullet : MonoBehaviour, IPoolable
 {
     [SerializeField] private float speed = 20f;
     [SerializeField] private float lifeTime = 3f;
 
     private int damage;
-    private AmmoColor ammoColor;
+    private AmmoColor ammoColor = AmmoColor.None;
     private float timer;
     private Vector3 moveDirection;
 
+    private BulletPool ownerPool;
+    private Transform bulletRoot;
+    private bool isReleased;
+
     public AmmoColor AmmoColor => ammoColor;
     public int Damage => damage;
-
-    private Transform bulletRoot;
+    public GameObject RootObject => bulletRoot != null ? bulletRoot.gameObject : gameObject;
 
     private void Awake()
     {
@@ -23,17 +26,27 @@ public class Bullet : MonoBehaviour
     private void OnEnable()
     {
         timer = lifeTime;
+        isReleased = false;
     }
 
     private void Update()
     {
-        bulletRoot.position += moveDirection * speed * Time.deltaTime;
+        if (isReleased)
+            return;
+
+        RootObject.transform.position += moveDirection * speed * Time.deltaTime;
 
         timer -= Time.deltaTime;
+
         if (timer <= 0f)
         {
-            Destroy(bulletRoot.gameObject);
+            ReturnToPool();
         }
+    }
+
+    public void AssignPool(BulletPool pool)
+    {
+        ownerPool = pool;
     }
 
     public void Initialize(int bulletDamage, AmmoColor color, Vector3 direction)
@@ -42,13 +55,34 @@ public class Bullet : MonoBehaviour
         ammoColor = color;
         moveDirection = direction.normalized;
         timer = lifeTime;
+        isReleased = false;
 
-        bulletRoot.rotation = Quaternion.LookRotation(moveDirection);
+        if (moveDirection.sqrMagnitude > 0.001f)
+            RootObject.transform.rotation = Quaternion.LookRotation(moveDirection);
+    }
+
+    public void OnSpawnedFromPool()
+    {
+        timer = lifeTime;
+        isReleased = false;
+    }
+
+    public void OnReturnedToPool()
+    {
+        damage = 0;
+        ammoColor = AmmoColor.None;
+        timer = lifeTime;
+        moveDirection = Vector3.zero;
+        isReleased = true;
     }
 
     private void OnTriggerEnter(Collider other)
     {
+        if (isReleased)
+            return;
+
         EnemyHealth enemy = other.GetComponentInParent<EnemyHealth>();
+
         if (enemy != null)
         {
             if (enemy.EnemyColor == ammoColor)
@@ -56,13 +90,28 @@ public class Bullet : MonoBehaviour
                 enemy.TakeDamage(damage);
             }
 
-            Destroy(bulletRoot.gameObject);
+            ReturnToPool();
             return;
         }
 
         if (other.CompareTag("Wall"))
         {
-            Destroy(bulletRoot.gameObject);
+            ReturnToPool();
+        }
+    }
+
+    private void ReturnToPool()
+    {
+        if (isReleased)
+            return;
+
+        if (ownerPool != null)
+        {
+            ownerPool.ReturnBullet(this);
+        }
+        else
+        {
+            Destroy(RootObject);
         }
     }
 }

@@ -8,11 +8,8 @@ public class PlayerShooter : MonoBehaviour
     [SerializeField] private Animator animator;
     [SerializeField] private Transform firePoint;
 
-    [Header("Bullet Prefabs")]
-    [SerializeField] private GameObject redBulletPrefab;
-    [SerializeField] private GameObject yellowBulletPrefab;
-    [SerializeField] private GameObject greenBulletPrefab;
-    [SerializeField] private GameObject blueBulletPrefab;
+    [Header("Pooling")]
+    [SerializeField] private BulletPool bulletPool;
 
     [Header("Shooting Settings")]
     [SerializeField] private float fireRate = 0.15f;
@@ -39,9 +36,13 @@ public class PlayerShooter : MonoBehaviour
         if (firePoint == null)
         {
             GameObject firePointObj = GameObject.FindGameObjectWithTag("firePoint");
+
             if (firePointObj != null)
                 firePoint = firePointObj.transform;
         }
+
+        if (bulletPool == null)
+            bulletPool = FindFirstObjectByType<BulletPool>();
 
         audioSource = GetComponent<AudioSource>();
 
@@ -94,19 +95,33 @@ public class PlayerShooter : MonoBehaviour
         if (fireTimer > 0f)
             return;
 
-        if (ammoInventory == null || mainCamera == null || firePoint == null)
+        if (ammoInventory == null || mainCamera == null || firePoint == null || bulletPool == null)
             return;
 
-        if (ammoInventory.CurrentAmmoColor == AmmoColor.None)
+        AmmoColor selectedColor = ammoInventory.CurrentAmmoColor;
+
+        if (selectedColor == AmmoColor.None)
             return;
 
         bool consumed = ammoInventory.TryConsumeCurrentAmmo(1);
+
         if (!consumed)
             return;
 
-        GameObject selectedBulletPrefab = GetBulletPrefab(ammoInventory.CurrentAmmoColor);
-        if (selectedBulletPrefab == null)
+        Vector3 aimPoint = GetAimPoint();
+        Vector3 shootDirection = (aimPoint - firePoint.position).normalized;
+
+        Bullet bullet = bulletPool.GetBullet(
+            selectedColor,
+            firePoint.position,
+            Quaternion.LookRotation(shootDirection)
+        );
+
+        if (bullet == null)
+        {
+            ammoInventory.AddAmmo(selectedColor, 1);
             return;
+        }
 
         fireTimer = fireRate;
 
@@ -116,27 +131,11 @@ public class PlayerShooter : MonoBehaviour
             animator.SetTrigger("Shoot");
         }
 
-        Vector3 aimPoint = GetAimPoint();
-        Vector3 shootDirection = (aimPoint - firePoint.position).normalized;
-
-        GameObject bulletObj = Instantiate(
-            selectedBulletPrefab,
-            firePoint.position,
-            Quaternion.LookRotation(shootDirection)
+        bullet.Initialize(
+            bulletDamage,
+            selectedColor,
+            shootDirection
         );
-
-        Bullet bullet = bulletObj.GetComponent<Bullet>();
-        if (bullet == null)
-            bullet = bulletObj.GetComponentInChildren<Bullet>();
-
-        if (bullet != null)
-        {
-            bullet.Initialize(
-                bulletDamage,
-                ammoInventory.CurrentAmmoColor,
-                shootDirection
-            );
-        }
 
         PlayShootSound();
     }
@@ -157,22 +156,5 @@ public class PlayerShooter : MonoBehaviour
             return hit.point;
 
         return ray.origin + ray.direction * maxAimDistance;
-    }
-
-    private GameObject GetBulletPrefab(AmmoColor color)
-    {
-        switch (color)
-        {
-            case AmmoColor.Red:
-                return redBulletPrefab;
-            case AmmoColor.Yellow:
-                return yellowBulletPrefab;
-            case AmmoColor.Green:
-                return greenBulletPrefab;
-            case AmmoColor.Blue:
-                return blueBulletPrefab;
-            default:
-                return null;
-        }
     }
 }
